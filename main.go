@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"write-to-kafka/config"
@@ -151,7 +153,20 @@ func formatBrokerURL(broker string, port int) string {
 		}
 		broker = proto + "://" + broker
 	}
+	// 如果 broker 中已包含端口号则不再追加
+	if !hasPort(broker) {
+		broker = fmt.Sprintf("%s:%d", broker, port)
+	}
 	return broker
+}
+
+func hasPort(rawURL string) bool {
+	s := rawURL
+	if idx := strings.Index(s, "://"); idx != -1 {
+		s = s[idx+3:]
+	}
+	_, _, err := net.SplitHostPort(s)
+	return err == nil
 }
 
 func lookupEnv(key, defaultVal string) string {

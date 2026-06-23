@@ -1,0 +1,21 @@
+# Build outputs
+/bin
+/out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/logs
+
+# Config with secrets (copy config.json.example instead)
+/config.local.json
+/config.prod.json

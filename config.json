@@ -1,0 +1,25 @@
+{
+  "mqtt": {
+    "broker": "tcp://127.0.0.1",
+    "port": 1883,
+    "client_id": "write-to-kafka",
+    "username": "",
+    "password": "",
+    "qos": 1,
+    "topics": ["sensors/batch", "sensors2/batch"]
+  },
+  "kafka": {
+    "brokers": ["10.81.151.147:21007", "10.81.151.148:21007", "10.81.151.149:21007"],
+    "topic": "gyhlw_dp_test",
+    "sasl": {
+      "mechanism": "gssapi",
+      "username": "gyhlw",
+      "password": "Huawei12#$%",
+      "gssapi_auth_type": "password",
+      "gssapi_realm": "HADOOP.COM",
+      "gssapi_service_name": "kafka",
+      "gssapi_domain_name": "hadoop.hadoop.com",
+      "krb5_config_path": "/etc/krb5.conf"
+    }
+  }
+}

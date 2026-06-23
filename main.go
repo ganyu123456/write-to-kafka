@@ -29,7 +29,7 @@ func main() {
 	cfg.Mqtt.Broker = formatBrokerURL(cfg.Mqtt.Broker, cfg.Mqtt.Port)
 	log.Printf("MQTT Broker URL: %s", cfg.Mqtt.Broker)
 
-	msgChan := make(chan models.BatchMessage, 1024)
+	msgChan := make(chan models.DeviceBatchMessage, 1024)
 
 	producer, err := kafka.NewProducer(cfg.Kafka)
 	if err != nil {

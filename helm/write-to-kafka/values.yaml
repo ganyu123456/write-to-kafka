@@ -48,7 +48,7 @@ env:
   MQTT__USERNAME: ""
   MQTT__PASSWORD: ""
   MQTT__QOS: "1"
-  MQTT__TOPICS: '["sensors/batch","sensors2/batch"]'
+  MQTT__TOPICS: '["device/sis/data"]'
 
   # Kafka 配置
   KAFKA__BROKERS: '["10.81.151.147:21007","10.81.151.148:21007","10.81.151.149:21007"]'

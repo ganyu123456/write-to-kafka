@@ -6,7 +6,7 @@
     "username": "",
     "password": "",
     "qos": 1,
-    "topics": ["sensors/batch", "sensors2/batch"]
+    "topics": ["device/sis/data"]
   },
   "kafka": {
     "brokers": ["10.81.151.147:21007", "10.81.151.148:21007", "10.81.151.149:21007"],

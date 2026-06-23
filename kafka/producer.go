@@ -119,7 +119,7 @@ func NewProducer(cfg config.KafkaConfig) (*Producer, error) {
 }
 
 // Start 启动消费循环，从 channel 读取批量消息并写入 Kafka
-func (p *Producer) Start(ctx context.Context, incoming <-chan models.BatchMessage) {
+func (p *Producer) Start(ctx context.Context, incoming <-chan models.DeviceBatchMessage) {
 	log.Printf("[Kafka] 开始消费消息循环")
 	for {
 		select {
@@ -130,8 +130,8 @@ func (p *Producer) Start(ctx context.Context, incoming <-chan models.BatchMessag
 			}
 			return
 
-		case batch := <-incoming:
-			if err := p.writeBatch(ctx, batch); err != nil {
+		case deviceMsg := <-incoming:
+			if err := p.writeBatch(deviceMsg); err != nil {
 				log.Printf("[Kafka] 写入批次失败: %v", err)
 			}
 		}
@@ -139,7 +139,9 @@ func (p *Producer) Start(ctx context.Context, incoming <-chan models.BatchMessag
 }
 
 // writeBatch 将一批测点数据写入 Kafka
-func (p *Producer) writeBatch(ctx context.Context, batch models.BatchMessage) error {
+func (p *Producer) writeBatch(deviceMsg models.DeviceBatchMessage) error {
+	batch := deviceMsg.BatchData
+	deviceID := deviceMsg.DeviceID
 	if len(batch) == 0 {
 		return nil
 	}
@@ -148,6 +150,7 @@ func (p *Producer) writeBatch(ctx context.Context, batch models.BatchMessage) er
 	for tagName, sv := range batch {
 		km := models.KafkaMessage{
 			TagName:   tagName,
+			DeviceID:  deviceID,
 			Value:     sv.Value,
 			Timestamp: sv.Timestamp,
 			Quality:   sv.State,

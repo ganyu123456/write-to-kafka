@@ -19,9 +19,10 @@ type BatchMessage map[string]SensorValue
 //	  "batchData": { ... }
 //	}
 type DeviceBatchMessage struct {
-	Timestamp int64        `json:"timestamp"`
-	DeviceID  string       `json:"deviceId"`
-	BatchData BatchMessage `json:"batchData"`
+	Timestamp  int64        `json:"timestamp"`
+	DeviceID   string       `json:"deviceId"`
+	BatchData  BatchMessage `json:"batchData"`
+	KafkaTopic string       `json:"-"` // 目标 Kafka topic（内部路由用）
 }
 
 // KafkaMessage 写入 Kafka 的消息结构（每条记录一个测点）
@@ -30,5 +31,5 @@ type KafkaMessage struct {
 	DeviceID  string  `json:"device_id"`
 	Value     float64 `json:"value"`
 	Timestamp int64   `json:"timestamp"`
-	Quality   int     `json:"quality"`
+	State     int     `json:"state"`
 }

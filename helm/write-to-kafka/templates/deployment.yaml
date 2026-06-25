@@ -53,6 +53,11 @@ spec:
             - name: krb5-config
               mountPath: {{ .Values.krb5Config.mountPath }}
               readOnly: true
+            {{- range .Values.pointsFiles }}
+            - name: points-{{ .name }}
+              mountPath: {{ .mountPath }}
+              readOnly: true
+            {{- end }}
 
           livenessProbe:
             exec:
@@ -67,3 +72,9 @@ spec:
           hostPath:
             path: {{ .Values.krb5Config.hostPath }}
             type: File
+        {{- range .Values.pointsFiles }}
+        - name: points-{{ .name }}
+          hostPath:
+            path: {{ .hostPath }}
+            type: File
+        {{- end }}

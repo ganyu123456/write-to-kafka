@@ -138,12 +138,19 @@ func (p *Producer) Start(ctx context.Context, incoming <-chan models.DeviceBatch
 	}
 }
 
-// writeBatch 将一批测点数据写入 Kafka
+// writeBatch 将一批测点数据写入 Kafka。
+// 目标 topic 优先使用消息的 KafkaTopic 字段（管道模式），
+// 为空时回退到 producer 的默认 topic（单 topic 兼容模式）。
 func (p *Producer) writeBatch(deviceMsg models.DeviceBatchMessage) error {
 	batch := deviceMsg.BatchData
 	deviceID := deviceMsg.DeviceID
 	if len(batch) == 0 {
 		return nil
+	}
+
+	targetTopic := deviceMsg.KafkaTopic
+	if targetTopic == "" {
+		targetTopic = p.topic
 	}
 
 	messages := make([]*sarama.ProducerMessage, 0, len(batch))
@@ -153,7 +160,7 @@ func (p *Producer) writeBatch(deviceMsg models.DeviceBatchMessage) error {
 			DeviceID:  deviceID,
 			Value:     sv.Value,
 			Timestamp: sv.Timestamp,
-			Quality:   sv.State,
+			State:     sv.State,
 		}
 
 		payload, err := json.Marshal(km)
@@ -164,7 +171,7 @@ func (p *Producer) writeBatch(deviceMsg models.DeviceBatchMessage) error {
 
 		// 使用 tag_name 作为 key，确保同一测点进入同一分区
 		messages = append(messages, &sarama.ProducerMessage{
-			Topic: p.topic,
+			Topic: targetTopic,
 			Key:   sarama.StringEncoder(tagName),
 			Value: sarama.ByteEncoder(payload),
 		})
@@ -184,7 +191,7 @@ func (p *Producer) writeBatch(deviceMsg models.DeviceBatchMessage) error {
 		return fmt.Errorf("发送到 Kafka 失败: %w", err)
 	}
 
-	log.Printf("[Kafka] 成功发送 %d 条消息到 topic=%s", len(messages), p.topic)
+	log.Printf("[Kafka] 成功发送 %d 条消息到 topic=%s", len(messages), targetTopic)
 	return nil
 }
 

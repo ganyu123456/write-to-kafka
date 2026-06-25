@@ -21,5 +21,12 @@
       "gssapi_domain_name": "hadoop.hadoop.com",
       "krb5_config_path": "/etc/krb5.conf"
     }
-  }
+  },
+  "pipelines": [
+    {
+      "mqtt_topic": "device/sis/data",
+      "kafka_topic": "gyhlw_dp_test",
+      "points_file": "docs/points.csv"
+    }
+  ]
 }

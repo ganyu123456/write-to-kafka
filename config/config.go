@@ -2,8 +2,24 @@ package config
 
 // AppSettings 整体配置
 type AppSettings struct {
-	Mqtt  MqttConfig  `yaml:"mqtt" json:"mqtt"`
-	Kafka KafkaConfig `yaml:"kafka" json:"kafka"`
+	Mqtt      MqttConfig       `yaml:"mqtt" json:"mqtt"`
+	Kafka     KafkaConfig      `yaml:"kafka" json:"kafka"`
+	Pipelines []PipelineConfig `yaml:"pipelines" json:"pipelines"`
+}
+
+// PipelineConfig 单条 MQTT → Kafka 管道配置
+type PipelineConfig struct {
+	MqttTopic  string `yaml:"mqtt_topic" json:"mqtt_topic"`
+	KafkaTopic string `yaml:"kafka_topic" json:"kafka_topic"`
+	PointsFile string `yaml:"points_file" json:"points_file"`
+
+	// 可选：覆盖全局 MQTT broker 配置（为空则使用全局 MqttConfig）
+	MqttBroker   string `yaml:"mqtt_broker" json:"mqtt_broker"`
+	MqttPort     int    `yaml:"mqtt_port" json:"mqtt_port"`
+	MqttClientID string `yaml:"mqtt_client_id" json:"mqtt_client_id"`
+	MqttUsername string `yaml:"mqtt_username" json:"mqtt_username"`
+	MqttPassword string `yaml:"mqtt_password" json:"mqtt_password"`
+	MqttQoS      int    `yaml:"mqtt_qos" json:"mqtt_qos"`
 }
 
 // MqttConfig MQTT 客户端配置

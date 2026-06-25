@@ -41,18 +41,8 @@ resources:
 # ── 环境变量（渲染为 Deployment env，优先级高于 config.json）───
 # 修改此处后执行 helm upgrade 即可，无需重建镜像
 env:
-  # MQTT 配置
-  MQTT__BROKER: "tcp://192.168.122.231"
-  MQTT__PORT: "1883"
-  MQTT__CLIENTID: "write-to-kafka"
-  MQTT__USERNAME: ""
-  MQTT__PASSWORD: ""
-  MQTT__QOS: "1"
-  MQTT__TOPICS: '["device/sis/data"]'
-
   # Kafka 配置
   KAFKA__BROKERS: '["10.81.151.147:21007","10.81.151.148:21007","10.81.151.149:21007"]'
-  KAFKA__TOPIC: "gyhlw_dp_test"
   KAFKA__SASL_MECHANISM: "gssapi"
   KAFKA__SASL_USER: "gyhlw"
   KAFKA__SASL_PASSWORD: "Huawei12#$%"
@@ -62,8 +52,37 @@ env:
   KAFKA__SASL_GSSAPI_DOMAIN_NAME: "hadoop.hadoop.com"
   KAFKA__KRB5_CONFIG: "/etc/krb5.conf"
 
+  # ── 多管道配置（替换旧的 MQTT__TOPICS / KAFKA__TOPIC）─────────
+  # 格式：JSON 数组，每个元素定义一条 MQTT → Kafka 管道。
+  #   mqtt_topic    - 要订阅的 MQTT 主题
+  #   kafka_topic   - 推送数据的 Kafka 主题（命名规范 gyhly_{plant_code}）
+  #   points_file   - 可选，点表 CSV 路径（MQTT测点名,Kafka测点名）
+  #
+  #   以下字段可选，用于覆盖全局 MQTT broker 配置（不同管道可连接不同 broker）：
+  #   mqtt_broker   - MQTT broker 地址（覆盖全局 MQTT__BROKER）
+  #   mqtt_port     - MQTT 端口（覆盖全局 MQTT__PORT）
+  #   mqtt_username - MQTT 用户名（覆盖全局 MQTT__USERNAME）
+  #   mqtt_password - MQTT 密码（覆盖全局 MQTT__PASSWORD）
+  #   mqtt_qos      - MQTT QoS（覆盖全局 MQTT__QOS）
+  #
+  # 示例 — 多电厂多 broker 多主题：
+  # PIPELINES: '[
+  #   {"mqtt_topic":"device/sis/huangdao","kafka_topic":"gyhly_sd02001","mqtt_broker":"tcp://10.0.1.1","mqtt_port":1883,"points_file":"/etc/config/points_huangdao.csv"},
+  #   {"mqtt_topic":"device/sis/dongying","kafka_topic":"gyhly_sd03001","mqtt_broker":"tcp://10.0.2.1","mqtt_port":1883,"points_file":"/etc/config/points_dongying.csv"}
+  # ]'
+  #
+  # 当前配置（东营电厂 sd03001）：
+  PIPELINES: '[{"mqtt_topic":"device/sis/data","kafka_topic":"gyhly_sd03001","mqtt_broker":"tcp://10.66.87.82","mqtt_port":11883,"mqtt_qos":1,"points_file":"/etc/config/points_dongying.csv"}]'
+
 # ── krb5.conf 挂载（Kerberos 认证必需）────────────────────
 # 边缘节点上的 krb5.conf 挂载进容器
 krb5Config:
   hostPath: /etc/krb5.conf
   mountPath: /etc/krb5.conf
+
+# ── 点表 CSV 文件挂载（hostPath）───────────────────────────
+# 每个点表文件对应一条管道，在 PIPELINES 中通过 points_file 引用
+pointsFiles:
+  - name: points-dongying
+    hostPath: /data/write-ro-kafka/points/points_dongying.csv
+    mountPath: /etc/config/points_dongying.csv

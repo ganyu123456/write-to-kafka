@@ -25,11 +25,21 @@ func main() {
 	if err != nil {
 		log.Fatalf("加载配置失败: %v", err)
 	}
-	log.Printf("配置加载完成: MQTT=%s:%d, Kafka=%v/%s",
-		cfg.Mqtt.Broker, cfg.Mqtt.Port, cfg.Kafka.Brokers, cfg.Kafka.Topic)
+	log.Printf("配置加载完成: Kafka=%v", cfg.Kafka.Brokers)
 
-	cfg.Mqtt.Broker = formatBrokerURL(cfg.Mqtt.Broker, cfg.Mqtt.Port)
-	log.Printf("MQTT Broker URL: %s", cfg.Mqtt.Broker)
+	// ── 构建管道 ──────────────────────────────────────
+	pipelines := buildPipelines(cfg)
+	if len(pipelines) == 0 {
+		log.Fatalf("没有配置任何管道，请设置 PIPELINES 环境变量或 config.json")
+	}
+	for _, pl := range pipelines {
+		ptInfo := "无点表"
+		if pl.PointsTable != nil {
+			ptInfo = fmt.Sprintf("点表(%d条)", pl.PointsTable.Len())
+		}
+		log.Printf("管道: MQTT[%s@%s] → Kafka[%s] %s",
+			pl.MqttTopic, pl.MqttBroker, pl.KafkaTopic, ptInfo)
+	}
 
 	msgChan := make(chan models.DeviceBatchMessage, 1024)
 
@@ -43,7 +53,7 @@ func main() {
 
 	go producer.Start(ctx, msgChan)
 
-	consumer, err := mqtt.NewConsumer(cfg.Mqtt, msgChan)
+	consumer, err := mqtt.NewConsumer(cfg.Mqtt, msgChan, pipelines)
 	if err != nil {
 		log.Fatalf("创建 MQTT 消费者失败: %v", err)
 	}
@@ -55,6 +65,81 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-sigCh
 	log.Printf("收到信号 %v，正在退出...", sig)
+}
+
+// buildPipelines 根据配置构建管道列表，加载点表。
+// 优先使用 Pipelines（多管道模式），为空时回退到 Mqtt.Topics + Kafka.Topic（单管道兼容模式）。
+// 每条管道可覆盖全局 MQTT broker 配置，实现不同 topic 连接不同 broker。
+func buildPipelines(cfg *config.AppSettings) []*mqtt.Pipeline {
+	var pipelines []*mqtt.Pipeline
+
+	if len(cfg.Pipelines) > 0 {
+		for _, pc := range cfg.Pipelines {
+			pl := &mqtt.Pipeline{
+				MqttTopic:  pc.MqttTopic,
+				KafkaTopic: pc.KafkaTopic,
+			}
+
+			// 解析 MQTT 连接参数：管道级覆盖 > 全局配置
+			broker := pc.MqttBroker
+			if broker == "" {
+				broker = cfg.Mqtt.Broker
+			}
+			port := pc.MqttPort
+			if port == 0 {
+				port = cfg.Mqtt.Port
+			}
+			broker = formatBrokerURL(broker, port)
+			pl.MqttBroker = broker
+
+			pl.ClientID = pc.MqttClientID
+			if pl.ClientID == "" {
+				pl.ClientID = cfg.Mqtt.ClientID
+			}
+
+			pl.Username = pc.MqttUsername
+			if pl.Username == "" {
+				pl.Username = cfg.Mqtt.Username
+			}
+			pl.Password = pc.MqttPassword
+			if pl.Password == "" {
+				pl.Password = cfg.Mqtt.Password
+			}
+
+			if pc.MqttQoS > 0 {
+				pl.QoS = byte(pc.MqttQoS)
+			} else {
+				pl.QoS = cfg.Mqtt.QoS
+			}
+
+			if pc.PointsFile != "" {
+				pt, err := models.LoadPointsTable(pc.PointsFile)
+				if err != nil {
+					log.Printf("警告: 加载点表失败 %s: %v", pc.PointsFile, err)
+				} else {
+					pl.PointsTable = pt
+				}
+			}
+
+			pipelines = append(pipelines, pl)
+		}
+		return pipelines
+	}
+
+	// 兼容模式：从旧 Mqtt.Topics + Kafka.Topic 构建管道
+	broker := formatBrokerURL(cfg.Mqtt.Broker, cfg.Mqtt.Port)
+	for _, topic := range cfg.Mqtt.Topics {
+		pipelines = append(pipelines, &mqtt.Pipeline{
+			MqttTopic:   topic,
+			KafkaTopic:  cfg.Kafka.Topic,
+			MqttBroker:  broker,
+			ClientID:    cfg.Mqtt.ClientID,
+			Username:    cfg.Mqtt.Username,
+			Password:    cfg.Mqtt.Password,
+			QoS:         cfg.Mqtt.QoS,
+		})
+	}
+	return pipelines
 }
 
 func loadConfig() (*config.AppSettings, error) {
@@ -72,18 +157,28 @@ func loadConfig() (*config.AppSettings, error) {
 			Brokers: lookupEnvSlice("KAFKA__BROKERS", []string{"127.0.0.1:9092"}),
 			Topic:   lookupEnv("KAFKA__TOPIC", "sensor-data"),
 			SASL: config.KafkaSASLConfig{
-				Mechanism:        lookupEnv("KAFKA__SASL_MECHANISM", "none"),
-				Username:         os.Getenv("KAFKA__SASL_USER"),
-				Password:         os.Getenv("KAFKA__SASL_PASSWORD"),
-				GSSAPIAuthType:   lookupEnv("KAFKA__SASL_GSSAPI_AUTH_TYPE", "ccache"),
-				GSSAPIRealm:      os.Getenv("KAFKA__SASL_GSSAPI_REALM"),
+				Mechanism:         lookupEnv("KAFKA__SASL_MECHANISM", "none"),
+				Username:          os.Getenv("KAFKA__SASL_USER"),
+				Password:          os.Getenv("KAFKA__SASL_PASSWORD"),
+				GSSAPIAuthType:    lookupEnv("KAFKA__SASL_GSSAPI_AUTH_TYPE", "ccache"),
+				GSSAPIRealm:       os.Getenv("KAFKA__SASL_GSSAPI_REALM"),
 				GSSAPIServiceName: lookupEnv("KAFKA__SASL_GSSAPI_SERVICE_NAME", "kafka"),
 				GSSAPIDomainName:  os.Getenv("KAFKA__SASL_GSSAPI_DOMAIN_NAME"),
 				GSSAPIKeyTabPath:  lookupEnv("KAFKA__SASL_GSSAPI_KEYTAB_PATH", ""),
 				GSSAPICCachePath:  os.Getenv("KAFKA__SASL_GSSAPI_CCACHE_PATH"),
-				KRB5ConfigPath:   lookupEnv("KAFKA__KRB5_CONFIG", "/etc/krb5.conf"),
+				KRB5ConfigPath:    lookupEnv("KAFKA__KRB5_CONFIG", "/etc/krb5.conf"),
 			},
 		},
+	}
+
+	// 加载 PIPELINES 环境变量（JSON 数组）
+	if pipelinesJSON := os.Getenv("PIPELINES"); pipelinesJSON != "" {
+		var pipelines []config.PipelineConfig
+		if err := json.Unmarshal([]byte(pipelinesJSON), &pipelines); err != nil {
+			log.Printf("警告: 解析 PIPELINES 环境变量失败: %v", err)
+		} else {
+			cfg.Pipelines = pipelines
+		}
 	}
 
 	configFile := os.Getenv("CONFIG_FILE")
@@ -126,6 +221,11 @@ func mergeConfig(cfg, fileCfg *config.AppSettings) {
 	}
 	if fileCfg.Kafka.Topic != "" {
 		cfg.Kafka.Topic = fileCfg.Kafka.Topic
+	}
+
+	// 管道配置：环境变量 PIPELINES 优先，否则使用 config.json 中的 pipelines
+	if os.Getenv("PIPELINES") == "" && len(fileCfg.Pipelines) > 0 {
+		cfg.Pipelines = fileCfg.Pipelines
 	}
 
 	if os.Getenv("KAFKA__SASL_MECHANISM") == "" && fileCfg.Kafka.SASL.Mechanism != "" {

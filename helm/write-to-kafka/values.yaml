@@ -55,7 +55,7 @@ env:
   # ── 多管道配置（替换旧的 MQTT__TOPICS / KAFKA__TOPIC）─────────
   # 格式：JSON 数组，每个元素定义一条 MQTT → Kafka 管道。
   #   mqtt_topic    - 要订阅的 MQTT 主题
-  #   kafka_topic   - 推送数据的 Kafka 主题（命名规范 gyhly_{plant_code}）
+  #   kafka_topic   - 推送数据的 Kafka 主题（命名规范 gyhlw_{plant_code}）
   #   points_file   - 可选，点表 CSV 路径（MQTT测点名,Kafka测点名）
   #
   #   以下字段可选，用于覆盖全局 MQTT broker 配置（不同管道可连接不同 broker）：
@@ -67,22 +67,22 @@ env:
   #
   # 示例 — 多电厂多 broker 多主题：
   # PIPELINES: '[
-  #   {"mqtt_topic":"device/sis/huangdao","kafka_topic":"gyhly_sd02001","mqtt_broker":"tcp://10.0.1.1","mqtt_port":1883,"points_file":"/etc/config/points_huangdao.csv"},
-  #   {"mqtt_topic":"device/sis/dongying","kafka_topic":"gyhly_sd03001","mqtt_broker":"tcp://10.0.2.1","mqtt_port":1883,"points_file":"/etc/config/points_dongying.csv"}
+  #   {"mqtt_topic":"device/sis/huangdao","kafka_topic":"gyhlw_sd02001","mqtt_broker":"tcp://10.0.1.1","mqtt_port":1883,"points_file":"/etc/config/points_huangdao.csv"},
+  #   {"mqtt_topic":"device/sis/dongying","kafka_topic":"gyhlw_sd03001","mqtt_broker":"tcp://10.0.2.1","mqtt_port":1883,"points_file":"/etc/config/points_dongying.csv"}
   # ]'
   #
   # 当前配置（东营电厂 sd03001）：
-  PIPELINES: '[{"mqtt_topic":"device/sis/data","kafka_topic":"gyhly_sd03001","mqtt_broker":"tcp://10.66.87.82","mqtt_port":11883,"mqtt_qos":1,"points_file":"/etc/config/points_dongying.csv"}]'
+  PIPELINES: '[{"mqtt_topic":"device/sis/data","kafka_topic":"gyhlw_sd03001","mqtt_broker":"tcp://10.66.87.82","mqtt_port":11883,"mqtt_qos":1,"points_file":"/etc/config/points_dongying.csv"}]'
 
 # ── krb5.conf 挂载（Kerberos 认证必需）────────────────────
 # 边缘节点上的 krb5.conf 挂载进容器
 krb5Config:
-  hostPath: /data/write-ro-kafka/kerberos/krb5.conf
+  hostPath: /data/write-to-kafka/kerberos/krb5.conf
   mountPath: /etc/krb5.conf
 
 # ── 点表 CSV 文件挂载（hostPath）───────────────────────────
 # 每个点表文件对应一条管道，在 PIPELINES 中通过 points_file 引用
 pointsFiles:
   - name: points-dongying
-    hostPath: /data/write-ro-kafka/points/points_dongying.csv
+    hostPath: /data/write-to-kafka/points/points_dongying.csv
     mountPath: /etc/config/points_dongying.csv

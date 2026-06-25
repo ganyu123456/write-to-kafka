@@ -77,7 +77,7 @@ env:
 # ── krb5.conf 挂载（Kerberos 认证必需）────────────────────
 # 边缘节点上的 krb5.conf 挂载进容器
 krb5Config:
-  hostPath: /etc/krb5.conf
+  hostPath: /data/write-ro-kafka/kerberos/krb5.conf
   mountPath: /etc/krb5.conf
 
 # ── 点表 CSV 文件挂载（hostPath）───────────────────────────

@@ -17,9 +17,6 @@ spec:
       annotations:
         checksum/config: {{ .Values.env | toJson | sha256sum }}
     spec:
-      {{- if .Values.nodeName }}
-      nodeName: {{ .Values.nodeName }}
-      {{- end }}
 
       {{- with .Values.tolerations }}
       tolerations:

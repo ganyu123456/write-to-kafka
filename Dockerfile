@@ -29,9 +29,12 @@ WORKDIR /app
 # 安装调试工具、CA 证书
 RUN apk add --no-cache \
     ca-certificates \
+    tzdata \
     curl \
     bind-tools \
     busybox-extras
+
+ENV TZ=Asia/Shanghai
 
 # 复制编译产物
 COPY --from=builder /out/write-to-kafka .
